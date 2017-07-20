@@ -1,0 +1,122 @@
+---
+title: "PML_Exercise"
+author: "Kristen Dardia"
+date: "July 15, 2017"
+output: html_document
+---
+
+#Peer-graded Assignment: Practical Machine Learning Assignment
+#Executive Summary
+
+#Background
+
+####Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+
+####The goal of your project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set. You may use any of the other variables to predict with. You should create a report describing how you built your model, how you used cross validation, what you think the expected out of sample error is, and why you made the choices you did. You will also use your prediction model to predict 20 different test cases.
+
+### data loading
+```{r message=FALSE, warning=FALSE}
+setwd("H:/Desktop/R Programming/PML")
+training <- read.csv("pml-training.csv")
+testing  <- read.csv("pml-testing.csv")
+```
+### look at data
+```{r message=FALSE, warning=FALSE}
+dim(training)
+dim(testing)
+names(training)
+names(testing)
+```
+
+### data cleaning
+####Remove useless variables
+```{r message=FALSE, warning=FALSE}
+badvar <- c("X", "user_name", "kurtosis_yaw_belt", "skewness_yaw_belt", "amplitude_yaw_belt", "cvtd_timestamp", "kurtosis_yaw_dumbbell", "skewness_yaw_dumbbell", "kurtosis_yaw_forearm", "skewness_yaw_forearm")
+
+training <- training[ , -which(names(training) %in% badvar)]
+```
+#### convert to numeric if it should be numeric
+```{r message=FALSE, warning=FALSE}
+numvar <- c(
+  "kurtosis_roll_belt", "kurtosis_picth_belt", "skewness_roll_belt",
+  "skewness_roll_belt.1", "max_yaw_belt", "min_yaw_belt",
+  "kurtosis_roll_arm","kurtosis_picth_arm", "kurtosis_yaw_arm",
+  "skewness_roll_arm","skewness_pitch_arm", "skewness_yaw_arm",
+  "kurtosis_roll_dumbbell", "kurtosis_picth_dumbbell","skewness_roll_dumbbell",
+  "skewness_pitch_dumbbell","max_yaw_dumbbell", "min_yaw_dumbbell",
+  "kurtosis_roll_forearm","kurtosis_picth_forearm", "skewness_roll_forearm",
+  "skewness_pitch_forearm", "max_yaw_forearm", "min_yaw_forearm"
+)
+for (variable in numvar) {
+  training[[variable]] <- as.numeric(as.character(training[[variable]]))
+}
+```
+### finally, remove NA variables and try to work with just the tidy data
+```{r message=FALSE, warning=FALSE}
+training.naCounts <- colSums(sapply(training, is.na))
+training.a <- training[,training.naCounts == 0]
+```
+###now do it again for testing dataset
+```{r message=FALSE}
+testing <- testing[ , -which(names(testing) %in% badvar)]
+```
+```{r message=FALSE, warning=FALSE}
+for (variable in numvar) {
+  testing[[variable]] <- as.numeric(as.character(testing[[variable]]))
+}
+```
+```{r message=FALSE, warning=FALSE}
+testing.naCounts <- colSums(sapply(testing, is.na))
+testing.a <- testing[,testing.naCounts == 0]
+```
+###Cross Validation
+####partition the original data into 70% training and 30% testing.  
+```{r message=FALSE, warning=FALSE}
+set.seed(2017)
+library(caret)
+inTrain <- createDataPartition(training.a$classe, p=0.7, list=FALSE )
+train   <- training.a[ inTrain, ]
+test    <- training.a[ -inTrain, ]
+table(train$class)
+table(test$class)
+```
+###now let's fit a random forest model which is good for classification. make sure to load the caret package
+Random Forest model
+```{r cashe=TRUE, message=FALSE, warning=FALSE}
+modelFit  <- train( classe~., data=train, method="rf",importance=TRUE)
+```
+###now let's see how good the model is on the holdout of the training data and also on the test data; fit first and then look at confusion matrix
+```{r cashe=TRUE, message=FALSE, warning=FALSE}
+predTrain <- predict( modelFit, train )
+predTest  <- predict( modelFit, test )
+confusionMatrix( predTrain, train$classe )
+confusionMatrix( predTest, test$classe )
+```
+####results: The model has a very good accuracy of 99.39% on the testing set.
+
+####finally, let's see which variables actually mattered:
+```{r message=FALSE, warning=FALSE}
+variable.importances <- varImp(modelFit)
+plot(variable.importances)
+```
+###looks like just a few mattered; next step here would be to try to limit the number of variables to cut down on processing time.  That's for another day :)
+
+```{r message=FALSE, warning=FALSE}
+predTrain <- predict( modelFit, train )
+predTest  <- predict( modelFit, test )
+confusionMatrix( predTrain, train$classe )
+confusionMatrix( predTest, test$classe )
+```
+####results: The model has a very good accuracy of 0.9992 on the testing set.
+
+####finally, let's see which variables actually mattered:
+```{r message=FALSE, warning=FALSE}
+variable.importances <- varImp(modelFit)
+plot(variable.importances)
+```
+###looks like just a few mattered a lot and then variable importance drops off quickly; next step here would be to try to limit the number of variables to cut down on processing time.  That's for another day :)
+
+
+
+
